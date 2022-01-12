@@ -30,6 +30,8 @@ namespace FastExpressionCompiler.IssueTests
 
             var f = expr.CompileFast(true);
 
+            f.PrintIL();
+
             Assert.IsNotNull(f);
 
             Assert.AreEqual(314, f());
@@ -89,6 +91,7 @@ namespace FastExpressionCompiler.IssueTests
             var setlocaltocall = Expression.Assign(localint, call);
             var program = Expression.Block(
                 new[] { localint },
+                Expression.Assign(localint, Expression.Constant(0)),
                 Expression.IfThen(Expression.Constant(true), setlocaltocall),
                 Label(Label(typeof(int)), localint)
             );
@@ -107,6 +110,7 @@ namespace FastExpressionCompiler.IssueTests
             var setlocaltocall = Expression.Assign(localint, call);
             var program = Expression.Block(
                 new[] { localint },
+                Expression.Assign(localint, Expression.Constant(0)),
                 setlocaltocall,
                 Label(Label(typeof(int)), localint)
             );
