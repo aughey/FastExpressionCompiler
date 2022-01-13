@@ -28,13 +28,17 @@ namespace FastExpressionCompiler.IssueTests
         {
             var expr = CreateExpression();
 
-            var f = expr.CompileFast(true);
+            var fsys = expr.CompileSys();
 
-            f.PrintIL();
+            fsys.PrintIL("sys");
+
+            var f = expr.CompileFast();
+
+            f.PrintIL("fast");
 
             Assert.IsNotNull(f);
 
-            Assert.AreEqual(314, f());
+            Assert.AreEqual(314, f(true));
 
             GenerateAssemblyManually(expr);
         }
@@ -48,18 +52,18 @@ namespace FastExpressionCompiler.IssueTests
 
             Assert.IsNotNull(f);
 
-            Assert.AreEqual(8675309, f());
+            Assert.AreEqual(8675309, f(true));
 
             GenerateAssemblyManually(expr);
         }
 
-        private static void GenerateAssemblyManually(Expression<Func<int>> expr)
+        private static void GenerateAssemblyManually(Expression<Func<bool,int>> expr)
         {
             var dynamicAssembly = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName("temp"), AssemblyBuilderAccess.Run);
             var dynamicModule = dynamicAssembly.DefineDynamicModule("temp_module");
             var dynamicType = dynamicModule.DefineType("temp_type");
             // create a dynamic method
-            var dynamicMethod = dynamicType.DefineMethod("temp_method", MethodAttributes.Public | MethodAttributes.Static, typeof(int), null);
+            var dynamicMethod = dynamicType.DefineMethod("temp_method", MethodAttributes.Public | MethodAttributes.Static, typeof(int), new[]{typeof(bool)});
             // get the IL generator and put the code there
             var il = dynamicMethod.GetILGenerator();
 
@@ -82,31 +86,33 @@ namespace FastExpressionCompiler.IssueTests
             }
         }
 
-        private Expression<Func<int>> CreateExpression()
+        private Expression<Func<bool,int>> CreateExpression()
         {
             var instance = new TestMethods(314);
             var call = Expression.Call(Expression.Constant(instance), typeof(TestMethods).GetMethod("InstanceMethod")!);
 
+            var branchparam = Expression.Parameter(typeof(bool), "branch");
             var localint = Expression.Variable(typeof(int), "ret");
             var setlocaltocall = Expression.Assign(localint, call);
             var program = Expression.Block(
                 new[] { localint },
                 Expression.Assign(localint, Expression.Constant(0)),
-                Expression.IfThen(Expression.Constant(true), setlocaltocall),
+                Expression.IfThen(branchparam, setlocaltocall),
                 Label(Label(typeof(int)), localint)
             );
 
-            var fe = Lambda<Func<int>>(program);
+            var fe = Lambda<Func<bool,int>>(program, branchparam);
 
             return fe;
         }
 
-          private Expression<Func<int>> CreateNonIfThenExpression()
+          private Expression<Func<bool, int>> CreateNonIfThenExpression()
         {
             var instance = new TestMethods(8675309);
             var call = Expression.Call(Expression.Constant(instance), typeof(TestMethods).GetMethod("InstanceMethod")!);
 
             var localint = Expression.Variable(typeof(int), "ret");
+            var branchparam = Expression.Parameter(typeof(bool), "branch");
             var setlocaltocall = Expression.Assign(localint, call);
             var program = Expression.Block(
                 new[] { localint },
@@ -115,7 +121,7 @@ namespace FastExpressionCompiler.IssueTests
                 Label(Label(typeof(int)), localint)
             );
 
-            var fe = Lambda<Func<int>>(program);
+            var fe = Lambda<Func<bool,int>>(program, branchparam);
 
             return fe;
         }
